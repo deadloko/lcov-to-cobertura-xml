@@ -9,6 +9,7 @@ import unittest
 
 from lcov_cobertura import LcovCobertura
 
+
 class Test(unittest.TestCase):
     """Unit tests for lcov_cobertura."""
 
@@ -24,9 +25,13 @@ class Test(unittest.TestCase):
         self.assertEqual(result['packages']['foo']['line-rate'], '0.5')
         self.assertEqual(result['packages']['foo']['lines-covered'], 1)
         self.assertEqual(result['packages']['foo']['lines-total'], 2)
-        self.assertEqual(result['packages']['foo']['classes']['foo/file.ext']['branches-covered'], 1)
-        self.assertEqual(result['packages']['foo']['classes']['foo/file.ext']['branches-total'], 2)
-        self.assertEqual(result['packages']['foo']['classes']['foo/file.ext']['methods'], {})
+        self.assertEqual(result['packages']['foo']['classes']['foo/file.ext'][
+                             'branches-covered'], 1)
+        self.assertEqual(result['packages']['foo']['classes']['foo/file.ext'][
+                             'branches-total'], 2)
+        self.assertEqual(
+            result['packages']['foo']['classes']['foo/file.ext']['methods'],
+            {})
 
     def test_parse_with_functions(self):
         converter = LcovCobertura(
@@ -35,8 +40,12 @@ class Test(unittest.TestCase):
         self.assertEqual(result['packages']['foo']['line-rate'], '0.5')
         self.assertEqual(result['packages']['foo']['lines-covered'], 1)
         self.assertEqual(result['packages']['foo']['lines-total'], 2)
-        self.assertEqual(result['packages']['foo']['classes']['foo/file.ext']['methods']['(anonymous_1)'], ['1', '1'])
-        self.assertEqual(result['packages']['foo']['classes']['foo/file.ext']['methods']['namedFn'], ['2', '0'])
+        self.assertEqual(
+            result['packages']['foo']['classes']['foo/file.ext']['methods'][
+                '(anonymous_1)'], ['1', '1'])
+        self.assertEqual(
+            result['packages']['foo']['classes']['foo/file.ext']['methods'][
+                'namedFn'], ['2', '0'])
 
     def test_exclude_package_from_parser(self):
         converter = LcovCobertura(
@@ -53,28 +62,31 @@ class Test(unittest.TestCase):
         converter = LcovCobertura(
             'TN:\nSF:foo/file.ext\nDA:1,1\nDA:2,0\nBRDA:1,1,1,1\nBRDA:1,1,2,0\nFN:1,(anonymous_1)\nFN:2,namedFn\nFNDA:1,(anonymous_1)\nend_of_record\n')
         parsed_lcov = {'packages': {
-            'foo': {'branches-covered': 1, 'line-rate': '0.5', 'branch-rate': '0.5',
+            'foo': {'branches-covered': 1, 'line-rate': '0.5',
+                    'branch-rate': '0.5',
                     'lines-covered': 1, 'branches-total': 2, 'lines-total': 2,
                     'classes': {
-                    'Bar': {'branches-covered': 1, 'lines-covered': 1,
-                            'branches-total': 2,
-                            'methods': {
-                                '(anonymous_1)': ['1', '1'],
-                                'namedFn': ['2', '0']
-                            },
-                            'lines': {
-                                1: {'hits': '1', 'branches-covered': 1,
-                                    'branches-total': 2, 'branch': 'true'},
-                                2: {'hits': '0', 'branches-covered': 0,
-                                    'branches-total': 0, 'branch': 'false'}
-                            },
-                            'lines-total': 2, 'name': 'file.ext'}},
+                        'Bar': {'branches-covered': 1, 'lines-covered': 1,
+                                'branches-total': 2,
+                                'methods': {
+                                    '(anonymous_1)': ['1', '1'],
+                                    'namedFn': ['2', '0']
+                                },
+                                'lines': {
+                                    1: {'hits': '1', 'branches-covered': 1,
+                                        'branches-total': 2, 'branch': 'true'},
+                                    2: {'hits': '0', 'branches-covered': 0,
+                                        'branches-total': 0, 'branch': 'false'}
+                                },
+                                'lines-total': 2, 'name': 'file.ext'}},
                     }},
-                       'summary': {'branches-covered': 1, 'branches-total': 2,
-                                   'lines-covered': 1, 'lines-total': 2},
-                       'timestamp': '1346815648000'}
+            'summary': {'branches-covered': 1, 'branches-total': 2,
+                        'lines-covered': 1, 'lines-total': 2},
+            'timestamp': '1346815648000'}
         xml = converter.generate_cobertura_xml(parsed_lcov)
-        self.assertEqual(xml, '<?xml version="1.0" ?>\n<!DOCTYPE coverage\n  SYSTEM \'http://cobertura.sourceforge.net/xml/coverage-04.dtd\'>\n<coverage branch-rate="0.5" branches-covered="1" branches-valid="2" complexity="0" line-rate="0.5" lines-covered="1" lines-valid="2" timestamp="1346815648000" version="2.0.3">\n\t<sources>\n\t\t<source>.</source>\n\t</sources>\n\t<packages>\n\t\t<package branch-rate="0.5" complexity="0" line-rate="0.5" name="foo">\n\t\t\t<classes>\n\t\t\t\t<class branch-rate="0.5" complexity="0" filename="Bar" line-rate="0.5" name="file.ext">\n\t\t\t\t\t<methods>\n\t\t\t\t\t\t<method branch-rate="0.0" line-rate="0.0" name="namedFn" signature="">\n\t\t\t\t\t\t\t<lines>\n\t\t\t\t\t\t\t\t<line branch="false" hits="0" number="2"/>\n\t\t\t\t\t\t\t</lines>\n\t\t\t\t\t\t</method>\n\t\t\t\t\t\t<method branch-rate="1.0" line-rate="1.0" name="(anonymous_1)" signature="">\n\t\t\t\t\t\t\t<lines>\n\t\t\t\t\t\t\t\t<line branch="false" hits="1" number="1"/>\n\t\t\t\t\t\t\t</lines>\n\t\t\t\t\t\t</method>\n\t\t\t\t\t</methods>\n\t\t\t\t\t<lines>\n\t\t\t\t\t\t<line branch="true" condition-coverage="50% (1/2)" hits="1" number="1"/>\n\t\t\t\t\t\t<line branch="false" hits="0" number="2"/>\n\t\t\t\t\t</lines>\n\t\t\t\t</class>\n\t\t\t</classes>\n\t\t</package>\n\t</packages>\n</coverage>\n')
+
+        with open('cobertura_reference.xml', 'r') as cobertura_reference:
+            self.assertEqual(xml, cobertura_reference.read())
 
     def test_treat_non_integer_line_execution_count_as_zero(self):
         converter = LcovCobertura(
@@ -82,6 +94,7 @@ class Test(unittest.TestCase):
         result = converter.parse()
         self.assertEqual(result['packages']['foo']['lines-covered'], 1)
         self.assertEqual(result['packages']['foo']['lines-total'], 2)
+
 
 if __name__ == '__main__':
     unittest.main()

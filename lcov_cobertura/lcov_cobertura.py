@@ -15,6 +15,7 @@ import os
 import time
 import subprocess
 from xml.dom import minidom
+from lxml import etree
 from optparse import OptionParser
 
 from distutils.spawn import find_executable
@@ -220,6 +221,112 @@ class LcovCobertura(object):
 
     def generate_cobertura_xml(self, coverage_data):
         """
+                Given parsed coverage data, return a String cobertura XML representation.
+
+                :param coverage_data: Nested dict representing coverage information.
+                :type coverage_data: dict
+                """
+
+        eltree_doc = etree.Element('coverage')
+
+        summary = coverage_data['summary']
+
+        self._attrs2(eltree_doc, {
+            'branch-rate': self._percent(summary['branches-total'],
+                                         summary['branches-covered']),
+            'branches-covered': str(summary['branches-covered']),
+            'branches-valid': str(summary['branches-total']),
+            'complexity': '0',
+            'line-rate': self._percent(summary['lines-total'],
+                                       summary['lines-covered']),
+            'lines-covered': str(summary['lines-covered']),
+            'lines-valid': str(summary['lines-total']),
+            'timestamp': coverage_data['timestamp'],
+            'version': '2.0.3'
+        })
+
+        sources = self._el2(eltree_doc, 'sources', {})
+        source = self._el2(eltree_doc, 'source', {})
+
+        source.text = self.base_dir
+        sources.append(source)
+
+        packages_el = self._el2(eltree_doc, 'packages', {})
+
+        packages = coverage_data['packages']
+        for package_name, package_data in list(packages.items()):
+            package_el = self._el2(eltree_doc, 'package', {
+                'line-rate': package_data['line-rate'],
+                'branch-rate': package_data['branch-rate'],
+                'name': package_name,
+                'complexity': '0',
+            })
+            classes_el = self._el2(eltree_doc, 'classes', {})
+            for class_name, class_data in list(
+                    package_data['classes'].items()):
+                class_el = self._el2(eltree_doc, 'class', {
+                    'branch-rate': self._percent(class_data['branches-total'],
+                                                 class_data[
+                                                     'branches-covered']),
+                    'complexity': '0',
+                    'filename': class_name,
+                    'line-rate': self._percent(class_data['lines-total'],
+                                               class_data['lines-covered']),
+                    'name': class_data['name']
+                })
+
+                # Process methods
+                methods_el = self._el2(eltree_doc, 'methods', {})
+                for method_name, (line, hits) in list(
+                        class_data['methods'].items()):
+                    method_el = self._el2(eltree_doc, 'method', {
+                        'name': self.format(method_name),
+                        'signature': '',
+                        'line-rate': '1.0' if int(hits) > 0 else '0.0',
+                        'branch-rate': '1.0' if int(hits) > 0 else '0.0',
+                    })
+                    method_lines_el = self._el2(eltree_doc, 'lines', {})
+                    method_line_el = self._el2(eltree_doc, 'line', {
+                        'hits': hits,
+                        'number': line,
+                        'branch': 'false',
+                    })
+                    method_lines_el.append(method_line_el)
+                    method_el.append(method_lines_el)
+                    methods_el.append(method_el)
+
+                # Process lines
+                lines_el = self._el2(eltree_doc, 'lines', {})
+                lines = list(class_data['lines'].keys())
+                lines.sort()
+                for line_number in lines:
+                    line_el = self._el2(eltree_doc, 'line', {
+                        'branch': class_data['lines'][line_number]['branch'],
+                        'hits': str(class_data['lines'][line_number]['hits']),
+                        'number': str(line_number)
+                    })
+                    if class_data['lines'][line_number]['branch'] == 'true':
+                        total = int(
+                            class_data['lines'][line_number]['branches-total'])
+                        covered = int(class_data['lines'][line_number][
+                                          'branches-covered'])
+                        percentage = int((covered * 100.0) / total)
+                        line_el.set('condition-coverage',
+                                             '{0}% ({1}/{2})'.format(
+                                                 percentage, covered, total))
+                    lines_el.append(line_el)
+
+                class_el.append(methods_el)
+                class_el.append(lines_el)
+                classes_el.append(class_el)
+            package_el.append(classes_el)
+            packages_el.append(package_el)
+        eltree_doc.append(packages_el)
+
+        return minidom.parseString(etree.tostring(eltree_doc, xml_declaration=True, encoding="utf-8", doctype="<!DOCTYPE coverage SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'>").decode('utf-8')).toprettyxml(encoding='utf-8').decode('utf-8')
+
+    def generate_cobertura_xml2(self, coverage_data):
+        """
         Given parsed coverage data, return a String cobertura XML representation.
 
         :param coverage_data: Nested dict representing coverage information.
@@ -231,7 +338,9 @@ class LcovCobertura(object):
                                               "http://cobertura.sourceforge.net/xml/coverage-04.dtd")
         document = dom_impl.createDocument(None, "coverage", doctype)
         root = document.documentElement
+
         summary = coverage_data['summary']
+
         self._attrs(root, {
             'branch-rate': self._percent(summary['branches-total'],
                                          summary['branches-covered']),
@@ -248,6 +357,7 @@ class LcovCobertura(object):
 
         sources = self._el(document, 'sources', {})
         source = self._el(document, 'source', {})
+
         source.appendChild(document.createTextNode(self.base_dir))
         sources.appendChild(source)
 
@@ -346,6 +456,14 @@ class LcovCobertura(object):
         """
         for attr, val in list(attrs.items()):
             element.setAttribute(attr, val)
+        return element
+
+    def _el2(self, document, name, attrs):
+        return self._attrs2(etree.SubElement(document, name), attrs)
+
+    def _attrs2(self, element, attrs):
+        for attr, val in list(attrs.items()):
+            element.set(attr, val)
         return element
 
     def _percent(self, lines_total, lines_covered):
