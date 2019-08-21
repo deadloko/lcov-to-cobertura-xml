@@ -33,6 +33,7 @@ setup(name='lcov_cobertura',
                  'Topic :: Software Development :: Quality Assurance'
     ],
     keywords='lcov cobertura',
+    install_requires=['lxml'],
     entry_points={
         'console_scripts': ['lcov_cobertura=lcov_cobertura:main']
     },
