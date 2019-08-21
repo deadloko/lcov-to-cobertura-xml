@@ -17,6 +17,7 @@ import subprocess
 from xml.dom import minidom
 from lxml import etree
 from optparse import OptionParser
+# import xml.etree.ElementTree as etree
 
 from distutils.spawn import find_executable
 
@@ -36,7 +37,8 @@ class Demangler(object):
             CPPFILT, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
     def demangle(self, name):
-        self.pipe.stdin.write(name + "\n")
+        self.pipe.stdin.write((str(name) + "\n").encode('utf8'))
+        self.pipe.stdin.flush()
         return self.pipe.stdout.readline().rstrip()
 
 
@@ -84,7 +86,23 @@ class LcovCobertura(object):
         Convert lcov file to cobertura XML using options from this instance.
         """
         coverage_data = self.parse()
+        print('Parsed lcov data')
         return self.generate_cobertura_xml(coverage_data)
+
+    def indent(self, elem, level=0):
+        i = "\n" + level * "\t"
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "\t"
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+            for elem in elem:
+                self.indent(elem, level + 1)
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
 
     def parse(self):
         """
@@ -254,6 +272,7 @@ class LcovCobertura(object):
         packages_el = self._el2(eltree_doc, 'packages', {})
 
         packages = coverage_data['packages']
+        current_package = 0
         for package_name, package_data in list(packages.items()):
             package_el = self._el2(eltree_doc, 'package', {
                 'line-rate': package_data['line-rate'],
@@ -321,9 +340,15 @@ class LcovCobertura(object):
                 classes_el.append(class_el)
             package_el.append(classes_el)
             packages_el.append(package_el)
-        eltree_doc.append(packages_el)
+            current_package += 1
+            print('Proccessed {0} out of {1} packages.'.format(current_package, len(packages.items())))
 
-        return minidom.parseString(etree.tostring(eltree_doc, xml_declaration=True, encoding="utf-8", doctype="<!DOCTYPE coverage SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'>").decode('utf-8')).toprettyxml(encoding='utf-8').decode('utf-8')
+        eltree_doc.append(packages_el)
+        print('Appended packages element to xml root')
+
+        self.indent(eltree_doc)
+
+        return etree.tostring(eltree_doc, xml_declaration=True, encoding="utf-8", doctype="<!DOCTYPE coverage\n  SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'>").decode()
 
     def generate_cobertura_xml2(self, coverage_data):
         """
@@ -366,6 +391,7 @@ class LcovCobertura(object):
         packages_el = self._el(document, 'packages', {})
 
         packages = coverage_data['packages']
+        current_package = 0
         for package_name, package_data in list(packages.items()):
             package_el = self._el(document, 'package', {
                 'line-rate': package_data['line-rate'],
@@ -428,6 +454,7 @@ class LcovCobertura(object):
                 classes_el.appendChild(class_el)
             package_el.appendChild(classes_el)
             packages_el.appendChild(package_el)
+
         root.appendChild(packages_el)
 
         return document.toprettyxml()
@@ -523,6 +550,7 @@ def main(argv=None):
             lcov_data = lcov_file.read()
             lcov_cobertura = LcovCobertura(lcov_data, options.base_dir, options.excludes, options.demangle)
             cobertura_xml = lcov_cobertura.convert()
+            print('Lcov to xml convertion done.')
         with open(options.output, mode='wt') as output_file:
             output_file.write(cobertura_xml)
     except IOError:
