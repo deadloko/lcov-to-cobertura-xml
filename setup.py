@@ -5,11 +5,7 @@
 # This is free software, licensed under the Apache License, Version 2.0,
 # available in the accompanying LICENSE.txt file.
 
-from distutils.core import setup
-import sys
-
-sys.path.append('lcov_cobertura')
-import lcov_cobertura
+from setuptools import setup, find_packages
 
 setup(name='lcov_cobertura',
     version='1.6',
@@ -18,7 +14,7 @@ setup(name='lcov_cobertura',
     author_email='me@eriwen.com',
     url='https://eriwen.github.com/lcov-to-cobertura-xml/',
     download_url='https://raw.githubusercontent.com/eriwen/lcov-to-cobertura-xml/master/lcov_cobertura/lcov_cobertura.py',
-    long_description=lcov_cobertura.LcovCobertura.__doc__,
+    packages=find_packages(),
     package_dir={'': 'lcov_cobertura'},
     provides=['lcov_cobertura'],
     py_modules=['lcov_cobertura'],
