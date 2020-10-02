@@ -121,7 +121,6 @@ class LcovCobertura(object):
         file_lines_total = 0
         file_lines_covered = 0
         file_lines = {}
-        file_methods = {}
         file_branches_total = 0
         file_branches_covered = 0
 
@@ -137,7 +136,6 @@ class LcovCobertura(object):
                     file_dict['lines-total'] = file_lines_total
                     file_dict['lines-covered'] = file_lines_covered
                     file_dict['lines'] = dict(file_lines)
-                    file_dict['methods'] = dict(file_methods)
                     file_dict['branches-total'] = file_branches_total
                     file_dict['branches-covered'] = file_branches_covered
                     coverage_data['summary']['lines-total'] += file_lines_total
@@ -170,7 +168,6 @@ class LcovCobertura(object):
                 file_lines_total = 0
                 file_lines_covered = 0
                 file_lines.clear()
-                file_methods.clear()
                 file_branches_total = 0
                 file_branches_covered = 0
             elif input_type == 'DA':
@@ -212,13 +209,9 @@ class LcovCobertura(object):
             elif input_type == 'FN':
                 # FN:5,(anonymous_1)
                 function_line, function_name = line_parts[-1].strip().split(',')
-                file_methods[function_name] = [function_line, '0']
             elif input_type == 'FNDA':
                 # FNDA:0,(anonymous_1)
                 (function_hits, function_name) = line_parts[-1].strip().split(',')
-                if function_name not in file_methods:
-                    file_methods[function_name] = ['0', '0']
-                file_methods[function_name][-1] = function_hits
 
         # Exclude packages
         excluded = [x for x in coverage_data['packages'] for e in self.excludes
@@ -294,26 +287,6 @@ class LcovCobertura(object):
                     'name': class_data['name']
                 })
 
-                # Process methods
-                methods_el = self._el2(eltree_doc, 'methods', {})
-                for method_name, (line, hits) in list(
-                        class_data['methods'].items()):
-                    method_el = self._el2(eltree_doc, 'method', {
-                        'name': self.format(method_name),
-                        'signature': '',
-                        'line-rate': '1.0' if int(hits) > 0 else '0.0',
-                        'branch-rate': '1.0' if int(hits) > 0 else '0.0',
-                    })
-                    method_lines_el = self._el2(eltree_doc, 'lines', {})
-                    method_line_el = self._el2(eltree_doc, 'line', {
-                        'hits': hits,
-                        'number': line,
-                        'branch': 'false',
-                    })
-                    method_lines_el.append(method_line_el)
-                    method_el.append(method_lines_el)
-                    methods_el.append(method_el)
-
                 # Process lines
                 lines_el = self._el2(eltree_doc, 'lines', {})
                 lines = list(class_data['lines'].keys())
@@ -335,7 +308,6 @@ class LcovCobertura(object):
                                                  percentage, covered, total))
                     lines_el.append(line_el)
 
-                class_el.append(methods_el)
                 class_el.append(lines_el)
                 classes_el.append(class_el)
             package_el.append(classes_el)
@@ -411,25 +383,6 @@ class LcovCobertura(object):
                     'name': class_data['name']
                 })
 
-                # Process methods
-                methods_el = self._el(document, 'methods', {})
-                for method_name, (line, hits) in list(class_data['methods'].items()):
-                    method_el = self._el(document, 'method', {
-                        'name': self.format(method_name),
-                        'signature': '',
-                        'line-rate': '1.0' if int(hits) > 0 else '0.0',
-                        'branch-rate': '1.0' if int(hits) > 0 else '0.0',
-                    })
-                    method_lines_el = self._el(document, 'lines', {})
-                    method_line_el = self._el(document, 'line', {
-                        'hits': hits,
-                        'number': line,
-                        'branch': 'false',
-                    })
-                    method_lines_el.appendChild(method_line_el)
-                    method_el.appendChild(method_lines_el)
-                    methods_el.appendChild(method_el)
-
                 # Process lines
                 lines_el = self._el(document, 'lines', {})
                 lines = list(class_data['lines'].keys())
@@ -449,7 +402,6 @@ class LcovCobertura(object):
                                                  percentage, covered, total))
                     lines_el.appendChild(line_el)
 
-                class_el.appendChild(methods_el)
                 class_el.appendChild(lines_el)
                 classes_el.appendChild(class_el)
             package_el.appendChild(classes_el)
